@@ -8,6 +8,7 @@ const String downloadFolder = 'download';
 const String downloadedRecords = 'downloaded_videos.txt';
 const String filenameParameter = 'download_name';
 
+final List<String> _downloadedQueue = <String>[];
 /// Url and progress.
 final List<_M> _mQueue = <_M>[];
 
@@ -37,16 +38,25 @@ Future<void> _recoverDownloadedFiles() async {
     }
   } else {
     await file.create();
-    await Future.wait(List.generate(
-      lines.length,
-      (index) async {
-        final url = lines[index];
-        if (await _fileDownloaded(url)) {
-          await file.writeAsString(url, mode: FileMode.append);
-          lines.remove(url);
-        }
-      },
-    ));
+    int _start = 0;
+    while (_start < lines.length) {
+      if (_downloadedQueue.length == maxQueue) {
+        continue;
+      }
+      final url = lines[_start];
+      _downloadedQueue.add(url);
+      _start++;
+      if (await _fileDownloaded(url)) {
+        await file.writeAsString('$url\n', mode: FileMode.append);
+        lines.remove(url);
+        finishedCount++;
+      }
+      _downloadedQueue.remove(url);
+      if (_start == lines.length - 1) {
+        break;
+      }
+    }
+    await sleep(5);
   }
 }
 
@@ -194,11 +204,7 @@ String _clearLineAndUp([int line = 1]) {
   return _clearLine_ + _lineWrap + _clearLine_;
 }
 
-Dio get dio => Dio(BaseOptions(
-      connectTimeout: 15000,
-      sendTimeout: 15000,
-      receiveDataWhenStatusError: true,
-    ));
+Dio get dio => Dio(BaseOptions(receiveDataWhenStatusError: true));
 
 int get _ts => DateTime.now().millisecondsSinceEpoch;
 
