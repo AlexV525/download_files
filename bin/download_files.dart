@@ -120,17 +120,14 @@ void _printQueue() {
     final filename =
         Uri.parse(m.url).queryParameters[filenameParameter] as String;
     _print(' - $filename');
-  }
-  _print('');
-  for (final m in _mQueue) {
     final int p = m.progress ~/ 2;
     _print(
       '   '
-      '${_blockFilled_ * p + _blockEmpty_ * (50 - p)}  '
-      '${m.speed}',
+          '${_blockFilled_ * p + _blockEmpty_ * (50 - p)}  '
+          '${m.speed}',
     );
+    _print('');
   }
-  _print('');
   _print(
     '${(finishedCount / totalCount * 100).toStringAsFixed(2)}%'
     ' | $finishedCount / $totalCount',
