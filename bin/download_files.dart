@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 
 const int maxQueue = 5;
 const String downloadFolder = 'download';
+const String downloadedRecords = 'downloaded_videos.txt';
 const String filenameParameter = 'download_name';
 
 /// Url and progress.
@@ -18,13 +19,49 @@ Future<void> main(List<String> arguments) async {
   lines = await file.readAsLines();
   totalCount = lines.length;
   print('$totalCount records found.');
+  await _recoverDownloadedFiles();
   runZonedGuarded(() => _handleQueue(), (Object e, StackTrace s) async {
-    print(e);
-    print(s);
     await sleep(3);
     _postToBot(e, s);
     _handleQueue();
   });
+}
+
+Future<void> _recoverDownloadedFiles() async {
+  final file = File(downloadedRecords);
+  if (file.existsSync()) {
+    final list = await file.readAsLines();
+    finishedCount += list.length;
+    for (final url in list) {
+      lines.remove(url);
+    }
+  } else {
+    await file.create();
+    await Future.wait(List.generate(
+      lines.length,
+      (index) async {
+        final url = lines[index];
+        if (await _fileDownloaded(url)) {
+          await file.writeAsString(url, mode: FileMode.append);
+          lines.remove(url);
+        }
+      },
+    ));
+  }
+}
+
+Future<bool> _fileDownloaded(String url) async {
+  final uri = Uri.parse(url);
+  final filename = uri.queryParameters[filenameParameter]!;
+  final File file = File('$downloadFolder/$filename');
+
+  bool downloaded = false;
+  if (file.existsSync()) {
+    final int contentLength = await _obtainContentLength(url);
+    final int fileBytesLength = await file.length();
+    downloaded = fileBytesLength == contentLength;
+  }
+  return downloaded;
 }
 
 void _handleQueue() {
@@ -53,30 +90,25 @@ void _addToQueue() {
 Future<void> _download(String url) async {
   final uri = Uri.parse(url);
   final filename = uri.queryParameters[filenameParameter]!;
-  final File file = File('$downloadFolder/$filename');
 
-  bool fileExist = false;
-  if (file.existsSync()) {
-    final int contentLength = await _obtainContentLength(url);
-    final int fileBytesLength = file.lengthSync();
-    fileExist = fileBytesLength == contentLength;
-  }
-  if (!fileExist) {
-    try {
-      await dio.download(
-        url,
-        '$downloadFolder/$filename',
-        onReceiveProgress: (int count, int total) {
-          _mQueue.singleWhere((m) => m.url == url)
-            ..progress = count * 100 ~/ total
-            ..calculateSpeed(count);
-          _printQueue();
-        },
-      );
-    } catch (e) {
-      _download(url);
-      return;
-    }
+  try {
+    await dio.download(
+      url,
+      '$downloadFolder/$filename',
+      onReceiveProgress: (int count, int total) {
+        _mQueue.singleWhere((m) => m.url == url)
+          ..progress = count * 100 ~/ total
+          ..calculateSpeed(count);
+        _printQueue();
+      },
+    );
+    await File(downloadedRecords).writeAsString(
+      '$url\n',
+      mode: FileMode.append,
+    );
+  } catch (e) {
+    await _download(url);
+    return;
   }
 
   _mQueue.removeWhere((m) => m.url == url);
@@ -95,10 +127,16 @@ Future<int> _obtainContentLength(String url) async {
 }
 
 Future<void> _postToBot(Object e, StackTrace s) async {
+  final String content;
+  if (e is DioError) {
+    content = '${e.requestOptions.uri} ${e.message} ${e.type}';
+  } else {
+    content = '$e, $s';
+  }
   await dio.post(botUrl, data: {
     'msg_type': 'text',
     'content': {
-      'text': '$e, $s'.replaceAll('"', r'\"'),
+      'text': content.replaceAll('"', r'\"'),
     },
   });
 }
@@ -123,8 +161,8 @@ void _printQueue() {
     final int p = m.progress ~/ 2;
     _print(
       '   '
-          '${_blockFilled_ * p + _blockEmpty_ * (50 - p)}  '
-          '${m.speed}',
+      '${_blockFilled_ * p + _blockEmpty_ * (50 - p)}  '
+      '${m.speed}',
     );
     _print('');
   }
