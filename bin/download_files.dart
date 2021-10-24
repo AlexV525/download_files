@@ -8,7 +8,7 @@ const String downloadFolder = 'download';
 const String filenameParameter = 'download_name';
 
 /// Url and progress.
-final Map<String, int> _urlsQueue = <String, int>{};
+final List<_M> _mQueue = <_M>[];
 
 Future<void> main(List<String> arguments) async {
   if (!Directory(downloadFolder).existsSync()) {
@@ -28,9 +28,9 @@ Future<void> main(List<String> arguments) async {
 }
 
 void _handleQueue() {
-  while (_urlsQueue.length < maxQueue) {
+  while (_mQueue.length < maxQueue) {
     if (finishedCount == totalCount) {
-      print('All done.');
+      print('All files are downloaded.');
       exit(0);
     }
     _addToQueue();
@@ -39,13 +39,13 @@ void _handleQueue() {
 
 void _addToQueue() {
   final url = lines.removeAt(0);
-  if (_urlsQueue.containsKey(url)) {
+  if (_mQueue.any((m) => m.url == url)) {
     return;
   }
-  if (_urlsQueue.length >= maxQueue) {
+  if (_mQueue.length >= maxQueue) {
     return;
   }
-  _urlsQueue[url] = 1;
+  _mQueue.add(_M(url: url));
   _download(url);
   _printQueue();
 }
@@ -67,7 +67,8 @@ Future<void> _download(String url) async {
         url,
         '$downloadFolder/$filename',
         onReceiveProgress: (int count, int total) {
-          _urlsQueue[url] = count * 100 ~/ total;
+          _mQueue.singleWhere((m) => m.url == url).progress =
+              count * 100 ~/ total;
           _printQueue();
         },
       );
@@ -77,7 +78,7 @@ Future<void> _download(String url) async {
     }
   }
 
-  _urlsQueue.remove(url);
+  _mQueue.removeWhere((m) => m.url == url);
   finishedCount++;
   if (finishedCount == totalCount) {
     print('All files are downloaded.');
@@ -114,16 +115,14 @@ void _printQueue() {
     print(_clearLineAndUp(_lastLines));
   }
   _print('Downloading files:');
-  final entries = _urlsQueue.entries;
-  for (final entry in entries) {
-    final filename = Uri.parse(
-      entry.key,
-    ).queryParameters[filenameParameter] as String;
+  for (final m in _mQueue) {
+    final filename =
+        Uri.parse(m.url).queryParameters[filenameParameter] as String;
     _print(' - $filename');
   }
   _print('');
-  for (final entry in entries) {
-    final int p = entry.value ~/ 2;
+  for (final m in _mQueue) {
+    final int p = m.progress ~/ 2;
     _print('   ${_blockFilled_ * p + _blockEmpty_ * (50 - p)}');
   }
   _print('');
@@ -167,4 +166,26 @@ void print(Object object) {
 
 Future<void> sleep(int seconds) {
   return Future<void>.delayed(Duration(seconds: seconds));
+}
+
+class _M {
+  _M({
+    required this.url,
+    this.progress = 1,
+  });
+
+  final String url;
+  int progress;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is _M &&
+            runtimeType == other.runtimeType &&
+            url == other.url &&
+            progress == other.progress;
+  }
+
+  @override
+  int get hashCode => url.hashCode ^ progress.hashCode;
 }
