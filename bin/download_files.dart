@@ -67,8 +67,9 @@ Future<void> _download(String url) async {
         url,
         '$downloadFolder/$filename',
         onReceiveProgress: (int count, int total) {
-          _mQueue.singleWhere((m) => m.url == url).progress =
-              count * 100 ~/ total;
+          _mQueue.singleWhere((m) => m.url == url)
+            ..progress = count * 100 ~/ total
+            ..calculateSpeed(count);
           _printQueue();
         },
       );
@@ -123,7 +124,11 @@ void _printQueue() {
   _print('');
   for (final m in _mQueue) {
     final int p = m.progress ~/ 2;
-    _print('   ${_blockFilled_ * p + _blockEmpty_ * (50 - p)}');
+    _print(
+      '   '
+      '${_blockFilled_ * p + _blockEmpty_ * (50 - p)}  '
+      '${m.speed}',
+    );
   }
   _print('');
   _print(
@@ -160,6 +165,8 @@ Dio get dio => Dio(BaseOptions(
       receiveDataWhenStatusError: true,
     ));
 
+int get _ts => DateTime.now().millisecondsSinceEpoch;
+
 void print(Object object) {
   stdout.write(object);
 }
@@ -176,6 +183,37 @@ class _M {
 
   final String url;
   int progress;
+  double bytesPerSecond = 0;
+
+  int _lastTime = _ts;
+  int _lastBytes = 0;
+
+  void calculateSpeed(int count) {
+    final now = _ts;
+    if (now - _lastTime < 500) {
+      return;
+    }
+    if (_lastTime > 0) {
+      final diff = (count - _lastBytes).abs();
+      final duration = now - _lastTime;
+      bytesPerSecond = diff / duration;
+    }
+    _lastTime = now;
+    _lastBytes = count;
+  }
+
+  String get speed {
+    String unit;
+    double speed;
+    if (bytesPerSecond >= 1000) {
+      speed = bytesPerSecond / 1024;
+      unit = 'Mb';
+    } else {
+      speed = bytesPerSecond;
+      unit = 'Kb';
+    }
+    return '${speed.toStringAsFixed(2)} $unit/s';
+  }
 
   @override
   bool operator ==(Object other) {
