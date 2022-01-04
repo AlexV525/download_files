@@ -3,10 +3,14 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 
-const int maxQueue = 5;
+const int maxQueue = 10;
 const String downloadFolder = 'download';
 const String downloadedRecords = 'downloaded_videos.txt';
 const String filenameParameter = 'download_name';
+
+late final int totalCount;
+late List<String> lines;
+int finishedCount = 0;
 
 final List<String> _downloadedQueue = <String>[];
 /// Url and progress.
@@ -181,10 +185,6 @@ void _printQueue() {
     ' | $finishedCount / $totalCount',
   );
 }
-
-late final int totalCount;
-late List<String> lines;
-int finishedCount = 0;
 
 const String _hideCursor = '\x1b[?25l';
 const String _clearLine_ = '\x1b[2K';
