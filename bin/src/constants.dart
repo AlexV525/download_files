@@ -59,7 +59,7 @@ Future<void> recoverDownloadedFiles({
   void Function(String url)? onNotFinished,
 }) async {
   if (downloadedRecordsFile.existsSync()) {
-    final list = await downloadedRecordsFile.readAsLines();
+    final list = (await downloadedRecordsFile.readAsString()).split('\n');
     finishedCount += list.length;
     for (final url in list) {
       lines.remove(url);

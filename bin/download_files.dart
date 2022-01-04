@@ -5,10 +5,6 @@ import 'package:dio/dio.dart';
 
 import 'src/constants.dart';
 
-const int maxQueue = 10;
-
-int finishedCount = 0;
-
 /// Url and progress.
 final List<_M> _mQueue = <_M>[];
 
