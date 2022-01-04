@@ -18,7 +18,6 @@ Future<void> main(List<String> arguments) async {
   await initializeCheck(arguments);
   await _recoverDownloadedFiles();
   runZonedGuarded(() => _handleQueue(), _postToBot);
-  runZonedGuarded(() => _handleWritingQueue(), _postToBot);
 }
 
 Future<void> _recoverDownloadedFiles() async {
@@ -31,15 +30,20 @@ Future<void> _recoverDownloadedFiles() async {
   } else {
     await downloadedRecordsFile.create();
     int _start = 0;
+    print('\n');
     while (_start < lines.length) {
       if (_downloadedQueue.length == maxQueue) {
         continue;
       }
+      print(_clearLineAndUp());
+      print(_clearLine_ + 'Checking downloaded file $_start...' + '\n');
       final url = lines[_start];
       _downloadedQueue.add(url);
       _start++;
       if (await _fileDownloaded(url)) {
-        _writingQueue.add(url);
+        _addToWritingQueue(url);
+        lines.remove(url);
+        finishedCount++;
       }
       _downloadedQueue.remove(url);
       if (_start == lines.length - 1) {
@@ -91,25 +95,17 @@ Future<void> _download(String url) async {
   final uri = Uri.parse(url);
   final filename = uri.queryParameters[filenameParameter]!;
 
-  try {
-    await dio.download(
-      url,
-      '$downloadFolder/$filename',
-      onReceiveProgress: (int count, int total) {
-        _mQueue.singleWhere((m) => m.url == url)
-          ..progress = count * 100 ~/ total
-          ..calculateSpeed(count);
-        _printQueue();
-      },
-    );
-    await File(downloadedFileRecords).writeAsString(
-      '$url\n',
-      mode: FileMode.append,
-    );
-  } catch (e) {
-    await _download(url);
-    return;
-  }
+  await dio.download(
+    url,
+    '$downloadFolder/$filename',
+    onReceiveProgress: (int count, int total) {
+      _mQueue.singleWhere((m) => m.url == url)
+        ..progress = count * 100 ~/ total
+        ..calculateSpeed(count);
+      _printQueue();
+    },
+  );
+  _addToWritingQueue(url);
 
   _mQueue.removeWhere((m) => m.url == url);
   finishedCount++;
@@ -126,17 +122,24 @@ Future<int> _obtainContentLength(String url) async {
   return int.parse(_cv);
 }
 
+Future<void> _addToWritingQueue(String url) async {
+  final bool isEmpty = _writingQueue.isEmpty;
+  _writingQueue.add(url);
+  if (isEmpty) {
+    _handleWritingQueue();
+  }
+}
+
 Future<void> _handleWritingQueue() async {
-  while (true) {
+  if (_writingQueue.isNotEmpty) {
+    final String url = _writingQueue.first;
+    await downloadedRecordsFile.writeAsString(
+      '$url\n',
+      mode: FileMode.append,
+    );
+    _writingQueue.remove(url);
     if (_writingQueue.isNotEmpty) {
-      final String url = _writingQueue.first;
-      await downloadedRecordsFile.writeAsString(
-        '$url\n',
-        mode: FileMode.append,
-      );
-      lines.remove(url);
-      finishedCount++;
-      _writingQueue.remove(url);
+      await _handleWritingQueue();
     }
   }
 }
@@ -205,7 +208,9 @@ String _clearLineAndUp([int line = 1]) {
   return _clearLine_ + _lineWrap + _clearLine_;
 }
 
-Dio get dio => Dio(BaseOptions(receiveDataWhenStatusError: true));
+Dio get dio => Dio(
+      BaseOptions(connectTimeout: 15000, receiveDataWhenStatusError: true),
+    );
 
 int get _ts => DateTime.now().millisecondsSinceEpoch;
 
