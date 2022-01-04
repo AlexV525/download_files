@@ -3,45 +3,33 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 
-const int maxQueue = 10;
-const String downloadFolder = 'download';
-const String downloadedRecords = 'downloaded_videos.txt';
-const String filenameParameter = 'download_name';
+import 'src/constants.dart';
 
-late final int totalCount;
-late List<String> lines;
+const int maxQueue = 10;
+
 int finishedCount = 0;
 
-final List<String> _downloadedQueue = <String>[];
 /// Url and progress.
 final List<_M> _mQueue = <_M>[];
+final List<String> _downloadedQueue = <String>[];
+final List<String> _writingQueue = <String>[];
 
 Future<void> main(List<String> arguments) async {
-  if (!Directory(downloadFolder).existsSync()) {
-    Directory(downloadFolder).createSync();
-  }
-  final file = File('video.txt');
-  lines = await file.readAsLines();
-  totalCount = lines.length;
-  print('$totalCount records found.');
+  await initializeCheck(arguments);
   await _recoverDownloadedFiles();
-  runZonedGuarded(() => _handleQueue(), (Object e, StackTrace s) async {
-    await sleep(3);
-    _postToBot(e, s);
-    _handleQueue();
-  });
+  runZonedGuarded(() => _handleQueue(), _postToBot);
+  runZonedGuarded(() => _handleWritingQueue(), _postToBot);
 }
 
 Future<void> _recoverDownloadedFiles() async {
-  final file = File(downloadedRecords);
-  if (file.existsSync()) {
-    final list = await file.readAsLines();
+  if (downloadedRecordsFile.existsSync()) {
+    final list = await downloadedRecordsFile.readAsLines();
     finishedCount += list.length;
     for (final url in list) {
       lines.remove(url);
     }
   } else {
-    await file.create();
+    await downloadedRecordsFile.create();
     int _start = 0;
     while (_start < lines.length) {
       if (_downloadedQueue.length == maxQueue) {
@@ -51,9 +39,7 @@ Future<void> _recoverDownloadedFiles() async {
       _downloadedQueue.add(url);
       _start++;
       if (await _fileDownloaded(url)) {
-        await file.writeAsString('$url\n', mode: FileMode.append);
-        lines.remove(url);
-        finishedCount++;
+        _writingQueue.add(url);
       }
       _downloadedQueue.remove(url);
       if (_start == lines.length - 1) {
@@ -116,7 +102,7 @@ Future<void> _download(String url) async {
         _printQueue();
       },
     );
-    await File(downloadedRecords).writeAsString(
+    await File(downloadedFileRecords).writeAsString(
       '$url\n',
       mode: FileMode.append,
     );
@@ -138,6 +124,21 @@ Future<int> _obtainContentLength(String url) async {
   final response = await dio.head(url);
   final _cv = response.headers.value(Headers.contentLengthHeader) as String;
   return int.parse(_cv);
+}
+
+Future<void> _handleWritingQueue() async {
+  while (true) {
+    if (_writingQueue.isNotEmpty) {
+      final String url = _writingQueue.first;
+      await downloadedRecordsFile.writeAsString(
+        '$url\n',
+        mode: FileMode.append,
+      );
+      lines.remove(url);
+      finishedCount++;
+      _writingQueue.remove(url);
+    }
+  }
 }
 
 Future<void> _postToBot(Object e, StackTrace s) async {

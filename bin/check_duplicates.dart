@@ -1,21 +1,21 @@
-import 'dart:io';
+import 'src/constants.dart';
 
-Future<void> main() async {
+Future<void> main(List<String> arguments) async {
+  await initializeCheck(arguments);
   final Stopwatch stopwatch = Stopwatch()..start();
-  List<String> _lines = await File('video.txt').readAsLines();
   Set<String> duplicates = <String>{};
-  for (final line in _lines) {
-    final name = Uri.parse(line).queryParameters['download_name']!;
-    final _d = _lines.where((e) => e != line && e.contains(name));
+  for (final line in lines) {
+    final name = Uri.parse(line).queryParameters[filenameParameter]!;
+    final _d = lines.where((e) => e != line && e.contains(name));
     duplicates.addAll(_d);
   }
   print(duplicates.join('\n'));
   for (final line in duplicates) {
-    _lines.remove(line);
+    lines.remove(line);
   }
-  print(_lines.length);
-  _lines = _lines
-      .map((l) => Uri.parse(l).queryParameters['download_name']!)
+  print(lines.length);
+  lines = lines
+      .map((l) => Uri.parse(l).queryParameters[filenameParameter]!)
       .toList();
   stopwatch.stop();
   print(stopwatch.elapsed);
