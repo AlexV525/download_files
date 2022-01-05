@@ -11,18 +11,17 @@ Future<void> main(List<String> arguments) async {
     print('All files are awaiting.');
     return;
   }
-  final downloadedLines =
-      (await downloadedRecordsFile.readAsString()).split('\n');
+  final downloadedLines = await downloadedRecordsFile.readAsLines();
   downloadedLines.removeWhere((String e) => e.isEmpty);
-  print('${downloadedLines.length} files downloaded.');
+  print('${downloadedLines.length} files downloaded.\n');
   if (downloadedLines.isEmpty) {
     await downloadFile.copy(awaitingFileRecords);
     print('All files are awaiting.');
     return;
   }
-  for (final String line in downloadedLines) {
-    lines.remove(line);
-  }
-  await awaitingRecordsFile.writeAsString(lines.join('\n'));
-  print('${lines.length} files are awaiting.');
+  final originalSet = Set<String>.from(lines);
+  final downloadedSet = Set<String>.from(downloadedLines);
+  final differenceList = List<String>.from(originalSet.difference(downloadedSet));
+  await awaitingRecordsFile.writeAsString(differenceList.join('\n'));
+  print('${differenceList.length} files are awaiting.');
 }

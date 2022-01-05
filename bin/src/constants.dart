@@ -49,10 +49,10 @@ Future<void> initializeCheck(List<String> arguments) async {
   if (!Directory(downloadFolder).existsSync()) {
     Directory(downloadFolder).createSync(recursive: true);
   }
-  lines = (await downloadFile.readAsString()).split('\n');
+  lines = await downloadFile.readAsLines();
   lines.removeWhere((String e) => e.isEmpty);
   totalCount = lines.length;
-  print('$totalCount records found.');
+  print('$totalCount records found.\n');
 }
 
 Future<void> recoverDownloadedFiles({
