@@ -2,6 +2,7 @@
 /// [Author] Alex (https://github.com/AlexV525)
 /// [Date] 2022/1/4 10:43
 ///
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -79,7 +80,7 @@ Future<void> recoverDownloadedFiles({
       downloadedQueue.add(url);
       _start++;
       if (await _fileDownloaded(url, onNotFinished: onNotFinished)) {
-        addToWritingQueue(url);
+        await addToWritingQueue(url);
         lines.remove(url);
         finishedCount++;
       }
@@ -112,16 +113,20 @@ Future<bool> _fileDownloaded(
 }
 
 Future<int> _obtainContentLength(String url) async {
-  final response = await dio.head(url);
-  final _cv = response.headers.value(Headers.contentLengthHeader) as String;
-  return int.parse(_cv);
+  try {
+    final response = await dio.head(url);
+    final _cv = response.headers.value(Headers.contentLengthHeader) as String;
+    return int.parse(_cv);
+  } catch (e) {
+    return 0;
+  }
 }
 
 Future<void> addToWritingQueue(String url) async {
   final bool isEmpty = writingQueue.isEmpty;
   writingQueue.add(url);
   if (isEmpty) {
-    handleWritingQueue();
+    await handleWritingQueue();
   }
 }
 
