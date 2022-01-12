@@ -26,6 +26,9 @@ void _handleQueue() {
 }
 
 void _addToQueue() {
+  if (lines.isEmpty) {
+    return;
+  }
   final url = lines.removeAt(0);
   if (_mQueue.any((m) => m.url == url)) {
     return;
