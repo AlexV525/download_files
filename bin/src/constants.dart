@@ -5,16 +5,16 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:dio/dio.dart';
+import 'package:diox/diox.dart';
 
 late String task;
-late String downloadFolder = 'download/$task';
-late String downloadFileRecords = 'tasks/$task/files.txt';
-late String downloadedFileRecords = 'tasks/$task/downloaded_files.txt';
-late String awaitingFileRecords = 'tasks/$task/awaiting_files.txt';
-late File downloadFile = File(downloadFileRecords);
-late File downloadedRecordsFile = File(downloadedFileRecords);
-late File awaitingRecordsFile = File(awaitingFileRecords);
+String downloadFolder = 'download/$task';
+String downloadFileRecords = 'tasks/$task/files.txt';
+String downloadedFileRecords = 'tasks/$task/downloaded_files.txt';
+String awaitingFileRecords = 'tasks/$task/awaiting_files.txt';
+File downloadFile = File(downloadFileRecords);
+File downloadedRecordsFile = File(downloadedFileRecords);
+File awaitingRecordsFile = File(awaitingFileRecords);
 const String filenameParameter = 'download_name';
 
 late final int totalCount;
@@ -32,9 +32,9 @@ void print(Object object) => stdout.write(object);
 Future<void> sleep(int seconds) =>
     Future<void>.delayed(Duration(seconds: seconds));
 
-late final Dio dio = Dio(
+final Dio dio = Dio(
   BaseOptions(
-    connectTimeout: 15000,
+    connectTimeout: Duration(seconds: 15),
     receiveDataWhenStatusError: true,
   ),
 );
@@ -67,25 +67,25 @@ Future<void> recoverDownloadedFiles({
     }
   } else {
     await downloadedRecordsFile.create();
-    final List<String> _lines = List<String>.of(lines);
-    int _start = 0;
+    final List<String> pendingLines = lines.toList();
+    int start = 0;
     print('\n');
-    while (_start < totalCount) {
+    while (start < totalCount) {
       if (downloadedQueue.length == maxQueue) {
         continue;
       }
       print(clearLineAndUp());
-      print(clearLine_ + 'Checking downloaded file $_start...' + '\n');
-      final url = _lines[_start];
+      print('${clearLine_}Checking downloaded file $start...\n');
+      final url = pendingLines[start];
       downloadedQueue.add(url);
-      _start++;
+      start++;
       if (await _fileDownloaded(url, onNotFinished: onNotFinished)) {
         await addToWritingQueue(url);
         lines.remove(url);
         finishedCount++;
       }
       downloadedQueue.remove(url);
-      if (_start == _lines.length - 1) {
+      if (start == pendingLines.length - 1) {
         break;
       }
     }
@@ -115,8 +115,8 @@ Future<bool> _fileDownloaded(
 Future<int> _obtainContentLength(String url) async {
   try {
     final response = await dio.head(url);
-    final _cv = response.headers.value(Headers.contentLengthHeader) as String;
-    return int.parse(_cv);
+    final cl = response.headers.value(Headers.contentLengthHeader) as String;
+    return int.parse(cl);
   } catch (e) {
     return 0;
   }
@@ -147,11 +147,11 @@ Future<void> handleWritingQueue() async {
 const String clearLine_ = '\x1b[2K';
 
 String clearLineAndUp([int line = 1]) {
-  final String _lineWrap;
+  final String wrap;
   if (line == 1) {
-    _lineWrap = '\x1b[A';
+    wrap = '\x1b[A';
   } else {
-    _lineWrap = '\x1b[${line}A';
+    wrap = '\x1b[${line}A';
   }
-  return clearLine_ + _lineWrap + clearLine_;
+  return clearLine_ + wrap + clearLine_;
 }

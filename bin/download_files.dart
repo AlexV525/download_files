@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:dio/dio.dart';
+import 'package:diox/diox.dart';
 
 import 'src/constants.dart';
 
 /// Url and progress.
-final List<_M> _mQueue = <_M>[];
+final List<_Mission> _mQueue = <_Mission>[];
 
 Future<void> main(List<String> arguments) async {
   await initializeCheck(arguments);
@@ -36,7 +36,7 @@ void _addToQueue() {
   if (_mQueue.length >= maxQueue) {
     return;
   }
-  _mQueue.add(_M(url: url));
+  _mQueue.add(_Mission(url: url));
   _download(url);
   _printQueue();
 }
@@ -85,9 +85,11 @@ int _lastLines = 0;
 
 void _printQueue() {
   print(_hideCursor);
+
+  // ignore: no_leading_underscores_for_local_identifiers
   void _print(Object v) {
     _lastLines++;
-    print(clearLine_ + v.toString() + '\n');
+    print('$clearLine_$v\n');
   }
 
   if (_lastLines > 0) {
@@ -119,14 +121,11 @@ const String _blockEmpty_ = '▁';
 const String botUrl = 'https://open.feishu.cn/open-apis/bot/v2/hook/'
     'feff0216-78f6-406a-ae7d-7459e3a4a6ac';
 
-class _M {
-  _M({
-    required this.url,
-    this.progress = 1,
-  });
+class _Mission {
+  _Mission({required this.url});
 
   final String url;
-  int progress;
+  int progress = 1;
   double bytesPerSecond = 0;
 
   int _lastTime = ts;
@@ -162,7 +161,7 @@ class _M {
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
-        other is _M &&
+        other is _Mission &&
             runtimeType == other.runtimeType &&
             url == other.url &&
             progress == other.progress;

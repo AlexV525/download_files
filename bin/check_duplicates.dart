@@ -6,8 +6,8 @@ Future<void> main(List<String> arguments) async {
   Set<String> duplicates = <String>{};
   for (final line in lines) {
     final name = Uri.parse(line).queryParameters[filenameParameter]!;
-    final _d = lines.where((e) => e != line && e.contains(name));
-    duplicates.addAll(_d);
+    final d = lines.where((e) => e != line && e.contains(name));
+    duplicates.addAll(d);
   }
   print(duplicates.join('\n'));
   for (final line in duplicates) {

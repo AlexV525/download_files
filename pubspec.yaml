@@ -1,13 +1,13 @@
 name: download_files
-description: A simple command-line application.
-version: 1.0.0+20211230
+description: A simple command-line application to download a batch of files from the file.
+version: 1.0.0
 publish_to: none
 
 environment:
   sdk: '>=2.14.4 <3.0.0'
 
 dependencies:
-  dio: ^4.0.1
+  diox: ^5.0.0-dev.1
 
 dev_dependencies:
-  lints: ^1.0.0
+  lints: any
