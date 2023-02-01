@@ -1,0 +1,13 @@
+name: download_files
+description: A simple command-line application.
+version: 1.0.0+20211230
+publish_to: none
+
+environment:
+  sdk: '>=2.14.4 <3.0.0'
+
+dependencies:
+  dio: ^4.0.1
+
+dev_dependencies:
+  lints: ^1.0.0
